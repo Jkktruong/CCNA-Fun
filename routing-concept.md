@@ -1,0 +1,53 @@
+## 1. Xử lý gói tin trên đường truyền mạng
+<img src='https://i.imgur.com/idGwjhf.png'>
+- PC1 tạo một gói tin với địa chỉ IP đích là địa chỉ IP của PC2
+- PC1 xác định rằng địa chỉ IP của PC2 ở trên một mạng khác
+- PC1 tìm kiếm IP của PC2 trên gateway mặc định
+- PC1 tra cứu địa chỉ MAC của PC2 cho gateway mặc định của nó, nếu không có địa chỉ MAC thì PC1 sẽ tiến hành gửi các gói tin ARP để lấy địa chỉ MAC
+- PC1 đóng gói gói tin trong một tiêu đề mạng và gửi nó tới router R1
+- R1 nhận khung gói tin với tiêu đề do PC1 gửi
+- R1 sẽ nhìn vào địa chỉ MAC đích, đó là một cổng (interface) trên R1
+- R1 sẽ sao chép khung (frame) vào trong bộ đệm của nó để tiến hành xử lí
+- R1 tiến hành phân giải khung mạng (Ethernet frame) và tiến hành đọc địa chỉ IP đích
+- R1 xác định rằng IP đích ở trên một mạng khác
+- R1 sẽ cố gắng kết nối đến IP đích và mặt nạ mạng (subnet mask) với các đường định tuyến nằm trong bảng định tuyến của nó.
+- R1 sẽ lựa chọn dải subnet dài nhất (mạng subnet lớn nhất) và tiến hành định tuyển các gói tin phù hợp.
+- R1 tiến hành đóng gói gói tin cho cổng ra và chuyển đổi các frame tới cổng
+- R1 tiến hành chuyển tiếp các frame tới hop tiếp theo
+- R2 nhận các frame do R1 gửi tới
+- R2 sẽ nhìn vào địa chỉ MAC đích, nằm trên một cổng của R2
+- R2 tiến hành copy frame vào bộ đệm để tiến hành xử lí
+- R2 tiến hành phân giải Ethernet frame và đọc IP đích ở trong đó
+- R2 xác định rằng IP đích kết nối trực tiếp trong mạng
+- R2 tham khảo bộ đệm ARP của nó để kiểm tra xem có địa chỉ MAC cho PC2 hay không, nếu không có nó sẽ gửi các gói tin ARP để tiến hành lấy địa chỉ MAC của PC2 và thêm nó vào bộ đệm ARP của mình
+- R2 tiến hành đóng gói gói tin thành một data-link frame mới và gửi nó tới cho PC2
+- Frame được vận chuyển đến PC2
+- PC2 kiểm tra địa chỉ MAC đích và nhận thấy rằng địa chỉ đó là địa chỉ được sở hữu bởi cổng mạng của nó
+- PC2 tiến hành copy phần còn lại của frame, phân giải và gửi chúng lên các ngăn của TCP/IP để hệ điều hành xử lí
+
+## 2. Quyết định chuyển tiếp dựa trên tra cứu định tuyến
+- Thông thường, quyết định chuyển tiếp trong router sẽ dựa trên cơ sở 3 quá trình xử lí: giao thức định tuyến, bảng định tuyến, quyết định chuyển tiếp
+
+### 2.1. Giao thức định tuyến
+- Giao thức định tuyến sẽ sử dụng các thuật toán của nó để tìm ra con đường tốt nhất đến một mạng
+- Các tuyến với độ dài tiền tố (subnet mask) khác nhau sẽ được nhập vào bảng định tuyến vì chúng được xem là các tuyến khác nhau
+- Các tuyến có cùng độ dài tiền tố sử dụng khoảng cách quản trị làm bộ ngắt kết nối cho tuyến để đi vào bảng định tuyến. tức là EIGRP nội bộ (AD 90) sẽ giành chiến thắng trước OSPF (AD 120) nếu cả hai giao thức có một tuyến đến cùng một mạng đích.
+### 2.2. Bảng định tuyến
+- Bảng định tuyến là bảng lưu lại các đường định tuyến trên router mà nó đã xây dựng thông qua các giao thức định tuyến
+<img src='https://i.imgur.com/oHzyyLa.png'>
+### 2.3. Quyết định chuyển tiếp
+- Một tiền tố (prefix) dài nhất sẽ được router kết nối để gửi các gói tin tới cổng ra
+- Các gói tin di chuyển xuống ngăn TCP/IP từ layer 3 đến layer 2 và tiến hành đóng gói.
+- Phụ thuộc vào loại chuyển mạch được sử dụng để xác định frame được đặt trên dây nhanh như thế nào
+
+## 3. Viết lại khung (Frame)
+- Frame được gửi đến router và router đưa ra quyết định chuyển tiếp gói tin
+- Router viết lại frame ở layer 2, đóng gói  gói tin dựa trên cổng ra phù hợp và gửi các gói đến hop tiếp theo
+- Tiêu đề không có nhiều sự thay đổi: đối với IPv4 thì chỉ có chỉ số TTL và checksum là thay đổi, đối với IPv6 thì chỉ có số hop là giảm đi
+- Quá trình chuyển đổi rất không hiệu quả ở chỗ:
+	<ul>
+	<li>Bảng định tuyến tìm kiếm chậm và nó cần lặp lại các thuật toán đệ quy cho đến khi nó được kết nối trực tiếp đến hop tiếp theo và cổng ra cho gói tin được xác định</li>
+	<li>Hop tiếp theo phải được dịch trong gói tin ARP và xây dựng tiêu đề các frame</li>
+	<li>Chỉ sau khi thực hiện được thì các gói tin mới có thể được đóng gói và bỏ qua</li>
+	<li>Với mỗi, quá trình xử lí sẽ lặp lại từ đầu</li>
+	</ul>
